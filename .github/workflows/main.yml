@@ -2,7 +2,8 @@ name: Publish Quarto Website
 
 on:
   push:
-    branches: main
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -26,9 +27,9 @@ jobs:
       - name: Setup Quarto
         uses: quarto-dev/quarto-actions/setup@v2
 
-     - name: Install R packages
-  run: |
-    Rscript -e 'install.packages(c("tidyverse", "ggplot2", "dplyr", "flextable", "rmarkdown"), repos="https://cloud.r-project.org")'
+      - name: Install R packages
+        run: |
+          Rscript -e 'install.packages(c("tidyverse", "ggplot2", "dplyr", "flextable", "rmarkdown"), repos="https://cloud.r-project.org")'
 
       - name: Render Quarto
         uses: quarto-dev/quarto-actions/render@v2
