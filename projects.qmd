@@ -1,0 +1,1077 @@
+---
+title: "Project_Indonesia"
+author: "peneliti"
+format: html
+editor: visual
+---
+
+## WVS Indonesia
+
+```{r, output=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyverse)
+library(rstatix)
+library(report)
+library(psych)
+library(ggplot2)
+library(readxl)
+library(car)
+library(tinytex)
+library(knitr)
+library(sjPlot)
+library(janitor)
+library(flextable)
+library(kableExtra)
+library(tibble)
+library(broom)
+library(webshot2)
+library(gridExtra)
+library(grid)
+library(gt)
+library(officer)
+```
+
+```{r, warning=FALSE, results='hide'}
+### Memasukan data wvs wave 7, 5 dan 4
+wvs7 <- read_excel("D:/magang/Project Religiositas/Data Pisa/Indonesia/WVS_Wave_7_Indonesia_Excel.xlsx")
+wvs5 <- read_excel("D:/magang/Project Religiositas/Data Pisa/Indonesia/WV5_Data_Indonesia_Excel.xlsx")
+wvs4 <- read_excel("D:/magang/Project Religiositas/Data Pisa/Indonesia/WV4_Data_Indonesia_Excel.xlsx")
+
+
+## Data World Values Survey 7
+wvs7idn <- wvs7 |> 
+  select("Q260: Sex", 
+         "Q262: Age", 
+         "X003R: Age recoded (6 intervals)",
+         "Q289: Religious denominations - major groups",
+         "Q6: Important in life: Religion",
+         "Q164: Importance of God",
+         "Q275: Highest educational level: Respondent [ISCED 2011]",
+         "Q165: Believe in: God", 
+         "Q171: How often do you attend religious services", 
+         "Q172: How often do you pray", 
+         "Q173: Religious person",
+         "Q166: Believe in: life after death",
+         "Q167: Believe in: hell",
+         "Q168: Believe in: heaven") |> 
+  rename(sex = "Q260: Sex", 
+         umur = "Q262: Age",
+         usia = "X003R: Age recoded (6 intervals)",
+         Kelompok_agama = "Q289: Religious denominations - major groups",
+         percaya_tuhan = "Q165: Believe in: God",
+         Agamapenting = "Q6: Important in life: Religion",
+         God_penting = "Q164: Importance of God",
+         Pendterakhir = "Q275: Highest educational level: Respondent [ISCED 2011]",
+         Kehadiran = "Q171: How often do you attend religious services",
+         Tingkat_keagamaan = "Q172: How often do you pray",
+         orang_religius = "Q173: Religious person",
+         Percaya_tuhan = "Q165: Believe in: God",
+         percaya_afterlife = "Q166: Believe in: life after death",
+         percaya_neraka = "Q167: Believe in: hell",
+         percaya_surga = "Q168: Believe in: heaven")|>
+  mutate(Pendterakhir = as.character(Pendterakhir)) |>
+  filter(!Pendterakhir %in% c('-1', '0')) |>
+  mutate(sex_responden = dplyr::recode(as.character(sex),
+                                       '1'= 'Perempuan',
+                                       '2'= 'Laki-laki'),
+         usia = dplyr::recode(usia,
+                           '1' = "18-24",
+                           '2' = "25-34",
+                           '3' = "35-44",
+                           '4' = "45-54", 
+                           '5' = "55-64", 
+                           '6' = ">65"),
+         Agamapenting = dplyr::recode(as.character(Agamapenting),
+                                      '1'= '4',
+                                      '2'= '3',
+                                      '3'= '2',
+                                      '4'= '1'),
+         Kelompok_agama = dplyr::recode(as.character(Kelompok_agama),
+                                        '0'='Tidak ada',
+                                        '1'='Katholik roma',
+                                        '2'='Protestan',
+                                        '3'='Orthodox',
+                                        '4'='Yahudi',
+                                        '5'='Muslim',
+                                        '6'='Hindu',
+                                        '7'='Budha',
+                                        '8'='Lainnya',
+                                        '9'='Kong Hu Cu'),
+         Pendterakhir = dplyr::recode(as.character(Pendterakhir),
+                               '1'='SD',
+                               '2'='SMP',
+                               '3'='SMA',
+                               '4'='Sarjana',
+                               '5'='Sarjana',
+                               '6'='Sarjana',
+                               '7'='Sarjana',
+                               '8'='Sarjana'),
+         orang_religius = dplyr::recode(as.character(orang_religius),
+                                        '1'='3',
+                                        '2'='2',
+                                        '3'='1' )) |>
+  mutate(Pendterakhir = factor(Pendterakhir,
+                           levels = c("SD", "SMP", "SMA", "Sarjana")))
+nrow(wvs7idn)
+
+
+WVS7IDN <- wvs7idn |>
+  filter(!is.na(Pendterakhir), 
+         !is.na(Kehadiran), 
+         usia !="18-24") |>
+  droplevels() |>
+  dplyr::mutate(across(
+    c(Kehadiran, Agamapenting, orang_religius, God_penting),
+    ~ suppressWarnings(as.numeric(as.character(.)))
+  )) |>
+   dplyr::mutate(across(
+    c(Kehadiran, Agamapenting,
+      orang_religius, God_penting),
+    ~ ifelse(.< 0,NA,.)
+  ))   |>
+mutate(across(
+    c(Kehadiran, Agamapenting, orang_religius, God_penting),
+    ~ (. - min(., na.rm = TRUE)) /
+      (max(., na.rm = TRUE) - min(., na.rm = TRUE))    ## distandarisasi 
+  )) |>
+  mutate(Religiositas = rowMeans(
+    across(c(Kehadiran, Agamapenting, orang_religius, God_penting)),
+    na.rm = TRUE
+  ))
+
+nrow(WVS7IDN)
+
+
+## Data World Values Survey 5
+wvs5idn <- wvs5 |> 
+  select("V237: Age",
+         "V235: Sex",
+         "V9: Important in life: Religion",
+         "V238: Highest educational level: Respondent",
+         "V185G: Religious denomination -Main group",
+         "V186: How often do you attend religious services",
+         "V187: Religious person",
+         "V237R2: Age recoded (3 intervals)",
+         "V192: How important is god in your life",
+         "V237R: Age recoded (6 intervals)") |>
+  rename(umur = "V237: Age",
+         Usia = "V237R2: Age recoded (3 intervals)",
+         usia_responden ="V237R: Age recoded (6 intervals)",
+         Jenis_kelamin = "V235: Sex",
+         agama_penting = "V9: Important in life: Religion",
+         Pend_terakhir = "V238: Highest educational level: Respondent",
+         Intensitas_keagamaan = "V186: How often do you attend religious services",
+         individu_beragama = "V187: Religious person",
+         Keyakinan = "V185G: Religious denomination -Main group",
+         Tuhan_penting = "V192: How important is god in your life")|>
+  mutate(Keyakinan = as.character(Keyakinan),
+         Pend_terakhir = as.character(Pend_terakhir)) |>
+  filter(!Pend_terakhir %in% c('-1', '0'),
+         !Keyakinan %in% c("9", "-2")) |>
+  mutate(agama_penting = dplyr::recode(as.character(agama_penting),
+                                       "1"="4",
+                                       "2"="3",
+                                       "3"="2",
+                                       "4"="1"),
+         usia_responden = dplyr::recode(usia_responden,
+                           '1' = "18-24",
+                           '2' = "25-34",
+                           '3' = "35-44",
+                           '4' = "45-54", 
+                           '5' = "55-64", 
+                           '6' = ">65"),
+         Jenis_kelamin = dplyr::recode(as.character(Jenis_kelamin),
+                                       '1'='Laki-laki',
+                                       '2'='Perempuan'),
+         Pend_terakhir = dplyr::recode(as.character(Pend_terakhir),
+                                       '1'='Tidak sekolah',
+                                       '2'='SD',
+                                       '3'='SD',
+                                       '4'='SMP',
+                                       '5'='SMP',
+                                       '6'='SMA',
+                                       '7'='SMA',
+                                       '8'='Sarjana',
+                                       '9'='Sarjana'),
+         Keyakinan = dplyr::recode(as.character(Keyakinan),
+                                    '-1'='tidak tahu',
+                                    '0'='Tidak ada',
+                                    '1'='Roman Katolik',
+                                    '2'='Protestan',
+                                    '3'='Ortodoks',
+                                    '4'='Yahudi',
+                                    '5'='Muslim',
+                                    '6'='Hindu',
+                                    '7'='Budha'), 
+         individu_beragama = dplyr::recode(as.character(individu_beragama),
+                                           '1' = '3',
+                                           '2' = '2',
+                                           '3' = '1')) |>
+    mutate(Pend_terakhir = factor(Pend_terakhir,
+                           levels = c("SD", "SMP", "SMA", "Sarjana")))
+
+nrow(wvs5idn)
+
+
+
+WVS5IDN <- wvs5idn |>
+  filter(!is.na(Pend_terakhir), 
+         !is.na(Intensitas_keagamaan), 
+         usia_responden != "18-24") |>
+  droplevels()|>
+  dplyr::mutate(across(
+    c(Intensitas_keagamaan, agama_penting,
+      individu_beragama, Tuhan_penting),
+    ~ suppressWarnings(as.numeric(as.character(.)))
+  )) |>
+  dplyr::mutate(across(c(Intensitas_keagamaan, agama_penting,
+                         individu_beragama, Tuhan_penting),
+                       ~ ifelse(.<0, NA,.)))|>
+   mutate(across(
+    c(Intensitas_keagamaan, agama_penting,
+      individu_beragama, Tuhan_penting),
+    ~ (. - min(., na.rm = TRUE)) /
+      (max(., na.rm = TRUE) - min(., na.rm = TRUE))   ## distandarisasi
+  )) |>
+  dplyr::mutate(Religiositas = rowMeans(
+    dplyr::across(c(Intensitas_keagamaan, agama_penting,
+                    individu_beragama, Tuhan_penting)),
+    na.rm = TRUE
+  )) 
+
+nrow(WVS5IDN)
+
+
+## Data World Values Survey
+wvs4idn <- wvs4 |>
+  select("V225: Age", 
+         "V223: Sex",
+         "V225R2: Age recoded (3 intervals)",
+         "V225R: Age recoded (6 intervals)",
+         "V9: Important in life: Religion",
+         "V196: How important is God in your life",
+         "V226: Highest educational levell: Respondent",
+         "V184G: Religious denominations - major groups",
+         "V185: How often do you attend religious services",
+         "V186: Religious person",
+         "V191: Believe in: God",
+         "V192: Believe in: life after death",
+         "V194: Believe in: hell",
+         "V195: Believe in: heaven")|>
+  rename(umur = "V225: Age",
+         Usia_responden = "V225R2: Age recoded (3 intervals)",
+         usia = "V225R: Age recoded (6 intervals)",
+         jenis_kelamin = "V223: Sex",
+         religion_penting = "V9: Important in life: Religion",
+         tuhan_penting = "V196: How important is God in your life",
+         Pend_done = "V226: Highest educational levell: Respondent",
+         Jumlah_kehadiran = "V185: How often do you attend religious services",
+         Anggapan_beragama = "V186: Religious person",
+         Kepercayaan = "V184G: Religious denominations - major groups",
+         percaya_Tuhan = "V191: Believe in: God",
+         percaya_kehidupan_akhir = "V192: Believe in: life after death",
+         percaya_neraka = "V194: Believe in: hell",
+         percaya_surga = "V195: Believe in: heaven") |>
+  mutate(Pend_done = as.character(Pend_done)) |>
+  filter(!Pend_done %in% c('-1', '0'),
+         !Kepercayaan %in% c("9", "-2")) |>
+  mutate(religion_penting = dplyr::recode(as.character(religion_penting),
+                                          '1'='4',
+                                          '2'='3',
+                                          '3'='2',
+                                          '4'='1'),
+         usia = dplyr::recode(as.character(usia),
+                                        '1' = "18-24",
+                                        '2' = "25-34",
+                                        '3' = "35-44",
+                                        '4' = "45-54", 
+                                        '5' = "55-64", 
+                                        '6' = ">65"),
+         jenis_kelamin = dplyr::recode(as.character(jenis_kelamin),
+                                       '1'='Laki-laki',
+                                       '2'='Perempuan'),
+         Pend_done = dplyr::recode(as.character(Pend_done), 
+                            '1' = 'Tidak sekolah',
+                            '2' = 'SD',
+                            '3' = 'SD',
+                            '4' = 'SMP',
+                            '5' = 'SMP',
+                            '6' = 'SMA',
+                            '7' = 'SMA',
+                            '8' = 'Sarjana',
+                            '9' = 'Sarjana'), 
+         Kepercayaan = dplyr::recode(as.character(Kepercayaan),
+                                     '0'='Tidak ada',
+                                     '1'='Roman Katolik',
+                                     '2'='Protestan',
+                                     '3'='Ortodoks',
+                                     '4'='Yahudi',
+                                     '5'='Muslim',
+                                     '6'='Hindu',
+                                     '7'='Budha',
+                                     '8'='Yang lain',
+                                     '9'='Tidak menjawab'),
+         Anggapan_beragama = dplyr::recode(as.character(Anggapan_beragama),
+                                           '1' = '3',
+                                           '2' = '2',
+                                           '3' = '1')) |>
+    mutate(Pend_done = factor(Pend_done,
+                           levels = c("SD", "SMP", "SMA", "Sarjana")))
+
+nrow(wvs4idn)
+
+WVS4IDN <- wvs4idn |>
+  filter(!is.na(Pend_done), 
+         !is.na(Jumlah_kehadiran), 
+         usia != "18-24") |>
+  droplevels() |>
+  dplyr::mutate(across(
+    c(Jumlah_kehadiran, Anggapan_beragama, religion_penting, tuhan_penting),
+    ~ suppressWarnings(as.numeric(as.character(.)))
+  )) |>
+   dplyr::mutate(across(
+    c(Jumlah_kehadiran, Anggapan_beragama,
+      religion_penting, tuhan_penting),
+    ~ ifelse(. < 0, NA, .)
+  )) |>  
+  mutate(across(
+    c(Jumlah_kehadiran, Anggapan_beragama,
+      religion_penting, tuhan_penting),
+    ~ (. - min(., na.rm = TRUE)) /
+      (max(., na.rm = TRUE) - min(., na.rm = TRUE))     ## distandarisasi
+  )) |>
+  dplyr::mutate(Religiositas = rowMeans(
+    dplyr::across(c(Jumlah_kehadiran, Anggapan_beragama, religion_penting, tuhan_penting)),
+    na.rm = TRUE
+  )) |> drop_na()
+
+## cek NA yang dihilangkan
+test <- wvs4idn |>
+  filter(!is.na(Pend_done), 
+         !is.na(Jumlah_kehadiran), 
+         usia != "18-24") |>
+  droplevels() |>
+  mutate(across(
+    c(Jumlah_kehadiran, Anggapan_beragama,
+      religion_penting, tuhan_penting),
+    ~ suppressWarnings(as.numeric(as.character(.)))
+  )) |>
+  mutate(across(
+    c(Jumlah_kehadiran, Anggapan_beragama,
+      religion_penting, tuhan_penting),
+    ~ ifelse(. < 0, NA, .)
+  ))
+colSums(is.na(
+  test[, c("Jumlah_kehadiran",
+              "Anggapan_beragama",
+              "religion_penting",
+              "tuhan_penting")]
+))
+
+nrow(WVS4IDN)
+```
+
+# Mengolah data
+
+## distribusi rata-rata religiositas masy indonesia
+
+```{r}
+## WVS 4 Indonesia
+wvs_summary <- WVS4IDN |>
+  group_by(Pend_done) |>
+  summarise(
+    rata_religiositas = mean(Religiositas, na.rm = TRUE),
+    n = n()
+  ) |>
+  arrange(rata_religiositas) |>  
+  mutate(Pend_done = factor(Pend_done, levels = Pend_done)) |>
+  as_tibble()
+
+
+qq4 <- ggplot(
+  wvs_summary,
+  aes(
+    x = Pend_done,
+    y = rata_religiositas,
+    fill = Pend_done
+  )
+) +
+  geom_col(alpha = 0.8, width = 0.8) +
+  geom_text(
+    aes(label = paste0(round(rata_religiositas, 2), " (n=", n, ")")),
+    hjust = -0.3, size = 2, color = "black"
+  ) +
+  labs(
+    title = "World Value Surveys Indonesia gelombang 4 (1999-2004)",
+    x = "Tingkat Pendidikan",
+    y = "Rata-rata Religiositas"
+  ) +
+  coord_flip(clip = "off", expand = FALSE) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15))) +
+  scale_fill_manual(
+    values = c(
+      "SD" = "#6BAED6",       
+      "SMP" = "#BDD7E7",
+      "SMA" = "#2171B5",
+      "Sarjana" = "#08306B"   
+    ),
+    guide = "none"   
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(
+    plot.title = element_text(face = "bold", size = 11, hjust = 0.5),
+    axis.text.y = element_text(size = 9),
+    axis.text.x = element_text(size = 8),
+    plot.margin = margin(10, 60, 10, 10)
+  )
+wvsindo <- textGrob(
+  "Distribusi nilai Rata-rata Religiositas berdasarkan Tingkat Pendidikan",
+  gp = gpar(fontsize = 12, fontface = "bold")
+)
+
+caption <- textGrob(
+  "Sumber: World Values Survey Indonesia gelombang 4",
+  gp = gpar(fontsize = 9),
+  just = "right"
+)
+
+distribusi <- grid.arrange(
+  wvsindo,
+  qq4,
+  caption,
+  ncol = 1,
+  heights = c(1, 4, 0.6)
+  )
+
+ggsave("Distibusi_religiositas_wvs4.png", distribusi, dpi = 800)
+```
+
+```{r}
+## WVS 5 Indonesia
+wvs_summary <- WVS5IDN |>
+  group_by(Pend_terakhir) |>
+  summarise(
+    rata_religiositas = mean(Religiositas, na.rm = TRUE),
+    n = n()
+  ) |>
+  arrange(rata_religiositas) |>  
+  mutate(Pend_terakhir = factor(Pend_terakhir, levels = Pend_terakhir)) |>
+  as_tibble()
+
+
+qq5 <- ggplot(
+  wvs_summary,
+  aes(
+    x = Pend_terakhir,
+    y = rata_religiositas,
+    fill = Pend_terakhir
+  )
+) +
+  geom_col(alpha = 0.8, width = 0.7) +
+  geom_text(
+    aes(label = paste0(round(rata_religiositas, 2), " (n=", n, ")")),
+    hjust = -0.3, size = 2, color = "black"
+  ) +
+  labs(
+    title = "World Values Surveys Indonesia gelombang 5 (2005-2009) ",
+    x = "Tingkat Pendidikan",
+    y = "Rata-rata Religiositas"
+  ) +
+  coord_flip(clip = "off", expand = FALSE)  +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.25))) +
+  scale_fill_manual(
+    values = c(
+      "SD" = "#6BAED6",       
+      "SMP" = "#BDD7E7",
+      "SMA" = "#08306B",
+      "Sarjana" = "#2171B5"  
+    ),
+    guide = "none"   
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(
+    plot.title = element_text(face = "bold", size = 11, hjust = 0.5),
+    axis.text.y = element_text(size = 9),
+    axis.text.x = element_text(size = 8),
+    plot.margin = margin(10, 60, 10, 10)
+  )
+
+wvsindo <- textGrob(
+  "Distribusi nilai Rata-rata Religiositas berdasarkan Tingkat Pendidikan",
+  gp = gpar(fontsize = 12, fontface = "bold")
+)
+
+caption <- textGrob(
+  "Sumber: World Values Survey Indonesia gelombang 5",
+  gp = gpar(fontsize = 9),
+  just = "right"
+)
+
+distribusi <- grid.arrange(
+  wvsindo,
+  qq5,
+  caption,
+  ncol = 1,
+  heights = c(1, 4, 0.6)
+  )
+
+ggsave("Distibusi_religiositas_wvs5.png", distribusi, dpi = 800)
+```
+
+```{r}
+## WVS 7 Indonesia
+wvs_summary <- WVS7IDN |>
+  group_by(Pendterakhir) |>
+  summarise(
+    rata_religiositas = mean(Religiositas, na.rm = TRUE),
+    n = n()
+  ) |>
+  arrange(rata_religiositas) |>  
+  mutate(Pendterakhir = factor(Pendterakhir, levels = Pendterakhir)) |>
+  as_tibble()
+
+
+qq7 <- ggplot(
+  wvs_summary,
+  aes(
+    x = Pendterakhir,
+    y = rata_religiositas,
+    fill = Pendterakhir)) +
+  geom_col(alpha = 0.8, width = 0.7) +
+  geom_text(
+    aes(label = paste0(round(rata_religiositas, 2), " (n=", n, ")")),
+    hjust = -0.3, size = 2, color = "black"
+  ) +
+  labs(
+    title = "World Value Surveys Indonesia gelombang 7 (2017-2022) ",
+    x = "Tingkat Pendidikan",
+    y = "Rata-rata Religiositas"
+  ) +
+  coord_flip(clip = "off", expand = FALSE)  +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.25))) +
+  scale_fill_manual(
+    values = c(
+      "SD" = "#08306D",       
+      "SMP" = "#2171B5",
+      "SMA" = "#6BAED6",
+      "Sarjana" = "#BDD7E7"   
+    ),
+    guide = "none"   
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(
+    plot.title = element_text(face = "bold", size = 11, hjust = 0.5),
+    axis.text.y = element_text(size = 9),
+    axis.text.x = element_text(size = 8),
+    plot.margin = margin(10, 60, 10, 10)
+  )
+wvsindo <- textGrob(
+  "Distribusi nilai Rata-rata Religiositas berdasarkan Tingkat Pendidikan",
+  gp = gpar(fontsize = 12, fontface = "bold")
+)
+
+caption <- textGrob(
+  "Sumber: World Values Survey Indonesia gelombang 7",
+  gp = gpar(fontsize = 9),
+  just = "right"
+)
+
+distribusi <- grid.arrange(
+  wvsindo,
+  qq7,
+  caption,
+  ncol = 1,
+  heights = c(1, 4, 0.6)
+  )
+
+ggsave("Distibusi_religiositas_wvs7.png", distribusi, dpi = 800)
+```
+
+## Tabel Deskripsi
+
+```{r}
+# Fungsi untuk membuat tabel distribusi 
+buat_tabel <- function(var, nama_var){
+  tab <- table(var)
+  df <- data.frame(
+    Variabel = nama_var,
+    Kategori = names(tab),
+    Jumlah = as.vector(tab),
+    Persen = round(prop.table(tab) * 100, 1)
+  )
+  return(df)
+}
+
+# Buat tabel untuk setiap variabel 
+tabel_kelamin   <- buat_tabel(wvs4idn$jenis_kelamin, "Jenis Kelamin")
+tabel_usia      <- buat_tabel(wvs4idn$usia, "Kelompok Usia")
+tabel_pendidikan<- buat_tabel(wvs4idn$Pend_done, "Jenjang Pendidikan")
+tabel_agama     <- buat_tabel(wvs4idn$Kepercayaan, "Agama")
+
+# Gabungkan semua tabel jadi satu 
+tabel_final <- rbind(tabel_kelamin, tabel_usia, tabel_pendidikan, tabel_agama)
+
+# Membuat tabel data responden
+ft <- flextable(tabel_final) |>
+  set_header_labels(
+    Variabel = "Variabel", 
+    kategori_summary = "Kategori", 
+    Jumlah = "Jumlah", 
+    Persen = "Persen (%)"
+  ) |>
+  add_header_lines("Tabel 2. Statistik Deskriptif Data Responden WVS 4") |>
+  merge_v(j = "Variabel") |>
+  align(align = "center", part = "all") |>
+
+  # FONT Times New Roman
+  font(fontname = "Times New Roman", part = "all") |>
+  fontsize(size = 12, part = "all") |>
+
+  # Header lebih tebal
+  bold(part = "header") |>
+  bold(i = 1, part = "header") |>
+
+  autofit()
+
+ft
+doc <- read_docx() |>
+  body_add_flextable(ft)
+
+print(doc, target = "tabel_deskriptif_4indo.docx")
+```
+
+```{r}
+# Fungsi untuk membuat tabel distribusi 
+buat_tabel <- function(var, nama_var){
+  tab <- table(var)
+  df <- data.frame(
+    Variabel = nama_var,
+    Kategori = names(tab),
+    Jumlah = as.vector(tab),
+    Persen = round(prop.table(tab) * 100, 1)
+  )
+  return(df)
+}
+
+# Buat tabel untuk setiap variabel 
+tabel_kelamin   <- buat_tabel(wvs5idn$Jenis_kelamin, "Jenis Kelamin")
+tabel_usia      <- buat_tabel(wvs5idn$usia_responden, "Kelompok Usia")
+tabel_pendidikan<- buat_tabel(wvs5idn$Pend_terakhir, "Jenjang Pendidikan")
+tabel_agama     <- buat_tabel(wvs5idn$Keyakinan, "Agama")
+
+# Gabungkan semua tabel jadi satu 
+tabel_final <- rbind(tabel_kelamin, tabel_usia, tabel_pendidikan, tabel_agama)
+
+
+# Membuat tabel data responden
+ft <- flextable(tabel_final) |>
+  set_header_labels(
+    Variabel = "Variabel", 
+    kategori_summary = "Kategori", 
+    Jumlah = "Jumlah", 
+    Persen = "Persen (%)"
+  ) |>
+  add_header_lines("Tabel 3. Statistik Deskriptif Data Responden WVS 5") |>
+  merge_v(j = "Variabel") |>
+  align(align = "center", part = "all") |>
+
+  # FONT Times New Roman
+  font(fontname = "Times New Roman", part = "all") |>
+  fontsize(size = 12, part = "all") |>
+
+  # Header lebih tebal
+  bold(part = "header") |>
+  bold(i = 1, part = "header") |>
+
+  autofit()
+
+ft
+doc <- read_docx() |>
+  body_add_flextable(ft)
+
+print(doc, target = "tabel_deskriptif_5indo.docx")
+```
+
+```{r}
+# Fungsi untuk membuat tabel distribusi 
+buat_tabel <- function(var, nama_var){
+  tab <- table(var)
+  df <- data.frame(
+    Variabel = nama_var,
+    Kategori = names(tab),
+    Jumlah = as.vector(tab),
+    Persen = round(prop.table(tab) * 100, 1)
+  )
+  return(df)
+}
+
+# Buat tabel untuk setiap variabel 
+tabel_kelamin   <- buat_tabel(wvs7idn$sex_responden, "Jenis Kelamin")
+tabel_usia      <- buat_tabel(wvs7idn$usia, "Kelompok Usia")
+tabel_pendidikan<- buat_tabel(wvs7idn$Pendterakhir, "Jenjang Pendidikan")
+tabel_agama     <- buat_tabel(wvs7idn$Kelompok_agama, "Agama")
+
+# Gabungkan semua tabel jadi satu 
+tabel_final <- rbind(tabel_kelamin, tabel_usia, tabel_pendidikan, tabel_agama)
+
+
+# Membuat tabel data responden
+ft <- flextable(tabel_final) |>
+  set_header_labels(
+    Variabel = "Variabel", 
+    kategori_summary = "Kategori", 
+    Jumlah = "Jumlah", 
+    Persen = "Persen (%)"
+  ) |>
+  add_header_lines("Tabel 4. Statistik Deskriptif Data Responden WVS 7") |>
+  merge_v(j = "Variabel") |>
+  align(align = "center", part = "all") |>
+
+# Font Times New Roman
+  font(fontname = "Times New Roman", part = "all") |>
+  fontsize(size = 12, part = "all") |>
+
+# Header lebih tebal
+  bold(part = "header") |>
+  bold(i = 1, part = "header") |>
+
+  autofit()
+
+ft
+doc <- read_docx() |>
+  body_add_flextable(ft)
+
+print(doc, target = "tabel_deskriptif_7indo.docx")
+```
+
+## Indikator religiositas
+
+```{r}
+
+### Data Wvs 4
+tabel_deskriptif <- tibble(
+  Variabel = c("Religiositas", "Religiositas", "Religiositas", "Religiositas"),
+  Indikator = c("Kehadiran", "Individu religius", "Tuhan Penting", "Agama Penting"),
+  Mean = c(round(mean(WVS4IDN$Jumlah_kehadiran, na.rm = TRUE), 3),
+           round(mean(WVS4IDN$Anggapan_beragama, na.rm = TRUE), 3),
+           round(mean(WVS4IDN$tuhan_penting, na.rm = TRUE), 3),
+           round(mean(WVS4IDN$religion_penting, na.rm = TRUE), 3)),
+  SD = c(round(sd(WVS4IDN$Jumlah_kehadiran, na.rm = TRUE), 3),
+         round(sd(WVS4IDN$Anggapan_beragama, na.rm = TRUE), 3),
+         round(sd(WVS4IDN$tuhan_penting, na.rm = TRUE), 3),
+         round(sd(WVS4IDN$religion_penting, na.rm = TRUE), 3)),
+  Min = c(min(WVS4IDN$Jumlah_kehadiran, na.rm = TRUE),
+          min(WVS4IDN$Anggapan_beragama, na.rm = TRUE),
+          min(WVS4IDN$tuhan_penting, na.rm = TRUE),
+          min(WVS4IDN$religion_penting, na.rm = TRUE)),
+  Max = c(max(WVS4IDN$Jumlah_kehadiran, na.rm = TRUE),
+          max(WVS4IDN$Anggapan_beragama, na.rm = TRUE),
+          max(WVS4IDN$tuhan_penting, na.rm = TRUE),
+          max(WVS4IDN$religion_penting, na.rm = TRUE))
+)
+
+# Tabel rapi: variabel disatukan di tengah
+ft <- flextable(tabel_deskriptif) |>
+  set_caption("Tabel 5. Statistik Deskriptif Religiositas WVS 4") |>
+  align(align = "center", part = "all") |>
+  merge_v(j = "Variabel") |>
+  valign(j = "Variabel", valign = "center") |>
+  colformat_num(j = c("Mean", "SD", "Min", "Max"), digits = 3) |>
+  font(fontname = "Times New Roman", part = "all") |>
+  fontsize(size = 12, part = "all") |>
+  autofit()
+
+ft
+doc <- read_docx() |>
+  body_add_flextable(ft)
+
+print(doc, target = "tabel_indikator_4indo.docx")
+```
+
+```{r}
+### Data WVS 5
+tabel_deskriptif <- tibble(
+  Variabel = c("Religiositas", "Religiositas", "Religiositas", "Religiositas"),
+  Indikator = c("Tingkat Kehadiran", "Individu religius", "Tuhan Penting", "Agama Penting"),
+  Mean = c(round(mean(WVS5IDN$Intensitas_keagamaan, na.rm = TRUE), 3),
+           round(mean(WVS5IDN$individu_beragama, na.rm = TRUE), 3),
+           round(mean(WVS5IDN$Tuhan_penting, na.rm = TRUE), 3),
+           round(mean(WVS5IDN$agama_penting, na.rm = TRUE), 3)),
+  SD = c(round(sd(WVS5IDN$Intensitas_keagamaan, na.rm = TRUE), 3),
+         round(sd(WVS5IDN$individu_beragama, na.rm = TRUE), 3),
+         round(sd(WVS5IDN$Tuhan_penting, na.rm = TRUE), 3),
+         round(sd(WVS5IDN$agama_penting, na.rm = TRUE), 3)),
+  Min = c(min(WVS5IDN$Intensitas_keagamaan, na.rm = TRUE),
+          min(WVS5IDN$individu_beragama, na.rm = TRUE),
+          min(WVS5IDN$Tuhan_penting, na.rm = TRUE),
+          min(WVS5IDN$agama_penting, na.rm = TRUE)),
+  Max = c(max(WVS5IDN$Intensitas_keagamaan, na.rm = TRUE),
+          max(WVS5IDN$individu_beragama, na.rm = TRUE),
+          max(WVS5IDN$Tuhan_penting, na.rm = TRUE),
+          max(WVS5IDN$agama_penting, na.rm = TRUE))
+)
+
+# Tabel rapi: variabel disatukan di tengah
+ft <- flextable(tabel_deskriptif) |>
+  set_caption("Tabel 6. Statistik Deskriptif Religiositas WVS 5") |>
+  align(align = "center", part = "all") |>
+  merge_v(j = "Variabel") |>
+  valign(j = "Variabel", valign = "center") |>
+  colformat_num(j = c("Mean", "SD", "Min", "Max"), digits = 3) |>
+  font(fontname = "Times New Roman", part = "all") |>
+  fontsize(size = 12, part = "all") |>
+  autofit()
+
+ft
+doc <- read_docx() |>
+  body_add_flextable(ft)
+
+print(doc, target = "tabel_indikator_5indo.docx")
+```
+
+```{r}
+### data wvs 7
+tabel_deskriptif <- tibble(
+  Variabel = c("Religiositas", "Religiositas", "Religiositas", "Religiositas"),
+  Indikator = c("Kehadiran", "Agama Penting", "Tuhan Penting", "Individu Religius"),
+  Mean = c(round(mean(WVS7IDN$Kehadiran, na.rm = TRUE), 3),
+           round(mean(WVS7IDN$Agamapenting, na.rm = TRUE), 3),
+           round(mean(WVS7IDN$God_penting, na.rm = TRUE), 3),
+           round(mean(WVS7IDN$orang_religius, na.rm = TRUE), 3)),
+  SD = c(round(sd(WVS7IDN$Kehadiran, na.rm = TRUE), 3),
+         round(sd(WVS7IDN$Agamapenting, na.rm = TRUE), 3),
+         round(sd(WVS7IDN$God_penting, na.rm = TRUE), 3),
+         round(sd(WVS7IDN$orang_religius, na.rm = TRUE), 3)),
+  Min = c(min(WVS7IDN$Kehadiran, na.rm = TRUE),
+          min(WVS7IDN$Agamapenting, na.rm = TRUE),
+          min(WVS7IDN$God_penting, na.rm = TRUE),
+          min(WVS7IDN$orang_religius, na.rm = TRUE)),
+  Max = c(max(WVS7IDN$Kehadiran, na.rm = TRUE),
+          max(WVS7IDN$Agamapenting, na.rm = TRUE),
+          max(WVS7IDN$God_penting, na.rm = TRUE),
+          max(WVS7IDN$orang_religius, na.rm = TRUE))
+)
+
+# Tabel rapi: variabel disatukan di tengah
+ft <- flextable(tabel_deskriptif) |>
+  set_caption("Tabel 7. Statistik Deskriptif Religiositas WVS 7") |>
+  align(align = "center", part = "all") |>
+  merge_v(j = "Variabel") |>
+  valign(j = "Variabel", valign = "center") |>
+  colformat_num(j = c("Mean", "SD", "Min", "Max"), digits = 3) |>
+  font(fontname = "Times New Roman", part = "all") |>
+  fontsize(size = 12, part = "all") |>
+  autofit()
+
+ft
+doc <- read_docx() |>
+  body_add_flextable(ft)
+
+print(doc, target = "tabel_indikator_7indo.docx")
+```
+
+## Hasil analisis regresi
+
+```{r, warning=FALSE}
+## Analisis Regresi WVS Indonesia 4
+uji_regresi_4 <- lm(Religiositas ~ Pend_done, data = WVS4IDN)
+
+# untuk hasil R2
+r2 <- summary(uji_regresi_4)$r.squared
+adj_r2 <- summary(uji_regresi_4)$adj.r.squared
+
+# ambil hasil regresi
+hasil_reg <- tidy(uji_regresi_4, conf.int = TRUE) |>
+  mutate(
+    Variabel = dplyr::recode(term,
+      "(Intercept)" = "(Intercept)",
+      "Pend_doneSMP" = "SMP",
+      "Pend_doneSMA" = "SMA",
+      "Pend_doneSarjana" = "Sarjana"
+    ),
+    estimate = round(estimate, 3),
+    std.error = round(std.error, 3),
+    CI = paste0(
+      round(conf.low, 3),
+      " – ",
+      round(conf.high, 3)
+    ), 
+    p.value = ifelse(p.value < 0.001, "<0.001", round(p.value, 3)),
+    Signif = case_when(
+      p.value == "<0.001" ~ "***",
+      as.numeric(p.value) < 0.01 ~ "**",
+      as.numeric(p.value) < 0.05 ~ "*",
+      TRUE ~ ""
+    )
+  ) |>
+  select(Variabel, estimate, std.error, CI, p.value, Signif) |>
+  rename(
+    Koefisien = estimate,
+    `Std. Error` = std.error,
+    `CI (95%)` = CI,
+    `p-value` = p.value
+  )
+
+# buat tabel
+ft <- flextable(hasil_reg) |>
+  set_caption("Tabel 8. Analisis Regresi Pengaruh Pendidikan terhadap Religiositas WVS 4") |>
+  align(align = "center", part = "all") |>
+  colformat_num(
+    j = c("Koefisien", "Std. Error", "p-value"),
+    digits = 3
+  ) |>
+  bold(part = "header") |>
+  font(fontname = "Times New Roman", part = "all") |>
+  fontsize(size = 12, part = "all") |>
+  autofit() |>
+  add_footer_lines(
+    values = paste0(
+      "R² = ", round(r2, 3),
+      "; Adjusted R² = ", round(adj_r2, 3)
+    )
+  ) |> font(fontname = "Times New Roman", part = "footer")
+
+ft
+
+# save ke word
+doc <- read_docx() |>
+  body_add_flextable(ft)
+
+print(doc, target = "tabel_regresi_wvs4.docx")
+```
+
+```{r, warning=FALSE}
+## Analisis Regresi WVS Indonesia 5
+uji_regresi_5 <- lm(Religiositas ~ Pend_terakhir, data = WVS5IDN)
+
+# untuk hasil R2
+r2 <- summary(uji_regresi_5)$r.squared
+adj_r2 <- summary(uji_regresi_5)$adj.r.squared
+
+# ambil hasil regresi
+hasil_reg <- tidy(uji_regresi_5, conf.int = TRUE) |>
+  mutate(
+    Variabel = dplyr::recode(term,
+      "(Intercept)" = "(Intercept)",
+      "Pend_terakhirSMP" = "SMP",
+      "Pend_terakhirSMA" = "SMA",
+      "Pend_terakhirSarjana" = "Sarjana"
+    ),
+    estimate = round(estimate, 3),
+    std.error = round(std.error, 3),
+    CI = paste0(
+      round(conf.low, 3),
+      " – ",
+      round(conf.high, 3)
+    ), 
+    p.value = ifelse(p.value < 0.001, "<0.001", round(p.value, 3)),
+    Signif = case_when(
+      p.value == "<0.001" ~ "***",
+      as.numeric(p.value) < 0.01 ~ "**",
+      as.numeric(p.value) < 0.05 ~ "*",
+      TRUE ~ ""
+    )
+  ) |>
+  select(Variabel, estimate, std.error, CI, p.value, Signif) |>
+  rename(
+    Koefisien = estimate,
+    `Std. Error` = std.error,
+    `CI (95%)` = CI,
+    `p-value` = p.value
+  )
+
+# buat tabel
+ft <- flextable(hasil_reg) |>
+  set_caption("Tabel 9. Analisis Regresi Pengaruh Pendidikan terhadap Religiositas WVS 5") |>
+  align(align = "center", part = "all") |>
+  colformat_num(
+  j = c("Koefisien", "Std. Error"),
+  digits = 3
+  ) |>
+  bold(part = "header") |>
+  font(fontname = "Times New Roman", part = "all") |>
+  fontsize(size = 12, part = "all") |>
+  autofit() |>
+  add_footer_lines(
+    values = paste0(
+      "R² = ", round(r2, 3),
+      "; Adjusted R² = ", round(adj_r2, 3)
+    )
+  ) |> font(fontname = "Times New Roman", part = "footer")
+
+ft
+
+# save ke word
+doc <- read_docx() |>
+  body_add_flextable(ft)
+
+print(doc, target = "tabel_regresi_wvs5.docx")
+```
+
+```{r, warning=FALSE}
+## Analisis Regresi WVS Indonesia 7
+uji_regresi <- lm(Religiositas ~ Pendterakhir, data = WVS7IDN)
+
+# untuk hasil R2
+r2 <- summary(uji_regresi)$r.squared
+adj_r2 <- summary(uji_regresi)$adj.r.squared
+
+# ambil hasil regresi
+hasil_reg <- tidy(uji_regresi, conf.int = TRUE) |>
+  mutate(
+    Variabel = dplyr::recode(term,
+      "(Intercept)" = "(Intercept)",
+      "PendterakhirSMP" = "SMP",
+      "PendterakhirSMA" = "SMA",
+      "PendterakhirSarjana" = "Sarjana"
+    ),
+    estimate = round(estimate, 3),
+    std.error = round(std.error, 3),
+    CI = paste0(
+      round(conf.low, 3),
+      " – ",
+      round(conf.high, 3)
+    ),
+    p.value = ifelse(p.value < 0.001, "<0.001", round(p.value, 3)),
+    Signif = case_when(
+      p.value == "<0.001" ~ "***",
+      as.numeric(p.value) < 0.01 ~ "**",
+      as.numeric(p.value) < 0.05 ~ "*",
+      TRUE ~ ""
+    )
+  ) |>
+  select(Variabel, estimate, std.error, CI, p.value, Signif) |>
+  rename(
+    Koefisien = estimate,
+    `Std. Error` = std.error,
+    `CI (95%)` = CI,
+    `p-value` = p.value
+  )
+
+# buat tabel
+ft <- flextable(hasil_reg) |>
+  set_caption("Tabel 10. Analisis Regresi Pengaruh Pendidikan terhadap Religiositas WVS 7") |>
+  align(align = "center", part = "all") |>
+  colformat_num(
+    j = c("Koefisien", "Std. Error", "p-value"),
+    digits = 3
+  ) |>
+  bold(part = "header") |>
+  font(fontname = "Times New Roman", part = "all") |>
+  fontsize(size = 12, part = "all") |>
+  autofit() |>
+  add_footer_lines(
+    values = paste0(
+      "R² = ", round(r2, 3),
+      "; Adjusted R² = ", round(adj_r2, 3)
+    )
+  ) |> font(fontname = "Times New Roman", part = "footer")
+
+ft
+
+# save ke word
+doc <- read_docx() |>
+  body_add_flextable(ft)
+
+print(doc, target = "tabel_regresi_wvs7.docx")
+```

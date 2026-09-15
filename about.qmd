@@ -1,0 +1,61 @@
+---
+title: "About Me"
+toc: true
+toc-title: "On This Page"
+toc-location: left
+---
+
+# About Me
+
+## Profile
+
+I am Nida Salma, a Sociology of Education graduate interested in
+research, education, and data analysis.
+
+## Education
+
+### Universitas Negeri Yogyakarta
+
+Bachelor of Sociology Education.
+
+## Research
+
+My research interests include:
+
+- Sociology of Education
+- Educational inequality
+- Quantitative research
+- Social research
+- Data analysis
+
+## Skills
+
+- R & RStudio
+- Data Cleaning
+- Data Visualization
+- Statistical Analysis
+- Quantitative Research
+
+## Experience
+
+### Research
+
+Experience in conducting research projects from high school through university.
+
+### Teaching
+
+Experience teaching Sociology at the high-school level.
+
+## Projects
+
+### World Values Survey
+
+Education and Religiosity research using WVS data.
+
+### PISA
+
+Educational data analysis using PISA data.
+
+### Asesmen Nasional
+
+Analysis of Indonesian educational assessment data.
